@@ -7,10 +7,12 @@
 
 import UIKit
 
-class HomeViewController: BaseViewController, UITableViewDelegate, UITableViewDataSource {
-
+class HomeViewController: BaseViewController, UITableViewDelegate, UITableViewDataSource, HomeView {
+    
+    
     @IBOutlet weak var tableView: UITableView!
     var items = Array<Contact>()
+    var presenter: HomePresenter!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -18,40 +20,27 @@ class HomeViewController: BaseViewController, UITableViewDelegate, UITableViewDa
         initViews()
     }
     
+    func onLoadContacts(contacts: [Contact]) {
+        if contacts.count > 0 {
+            refreshTableView(contacts: contacts)
+        } else {
+            // error case
+        }
+    }
+    
+    func onContactDelete(deleted: Bool) {
+        if deleted {
+            presenter.apiContactList()
+        } else {
+            // error case
+        }
+    }
+    
     func refreshTableView(contacts: [Contact]) {
         self.items = contacts
         self.tableView.reloadData()
     }
     
-    func apiContactList() {
-        showProgress()
-        
-        AFHttp.get(url: AFHttp.API_CONTACT_LIST, params: AFHttp.paramsEmpty(), handler: { response in
-            self.hideProgress()
-            switch response.result {
-            case .success:
-                let contacts = try! JSONDecoder().decode([Contact].self, from: response.data!)
-                self.refreshTableView(contacts: contacts)
-            case let .failure(error):
-                print(error)
-            }
-        })
-    }
-    
-    func apiContactDelete(contact: Contact) {
-        showProgress()
-        
-        AFHttp.del(url: AFHttp.API_CONTACT_DELETE + contact.id!, params: AFHttp.paramsEmpty(), handler: { response in
-            self.hideProgress()
-            switch response.result {
-            case .success:
-                print(response.result)
-                self.apiContactList()
-            case let .failure(error):
-                print(error)
-            }
-        })
-    }
 
     // MARK: - Method
     
@@ -60,7 +49,12 @@ class HomeViewController: BaseViewController, UITableViewDelegate, UITableViewDa
         tableView.delegate = self
         
         initNavigation()
-        apiContactList()
+        
+        presenter = HomePresenter()
+        presenter.homeView = self
+        presenter.controller = self
+        
+        presenter.apiContactList()
     }
     
     func initNavigation() {
@@ -87,7 +81,7 @@ class HomeViewController: BaseViewController, UITableViewDelegate, UITableViewDa
     // MARK: - Action
     
     @objc func leftTapped() {
-        apiContactList()
+        presenter.apiContactList()
     }
     
     @objc func rightTapped() {
@@ -125,7 +119,7 @@ class HomeViewController: BaseViewController, UITableViewDelegate, UITableViewDa
         return UIContextualAction(style: .destructive, title: "Delete") { (action, swipeButtonView, completion) in
             print("DELETE HERE")
             
-            self.apiContactDelete(contact: contact)
+            self.presenter.apiContactDelete(contact: contact)
             completion(true)
         }
     }
